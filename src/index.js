@@ -1,14 +1,15 @@
 const path = require('path')
-const http=require('http')
-const socketio = require('socket.io')
-const express=require('express')
-const customid=require('custom-id')
-const {addUser,removeUser,getUser,getUsersInRoom,existingRoom,setKiller,setReadyState,checkAllReady,
-       setBooleanParameters,isKilled,addCoin}= require('./utils/users')
+const http = require('http')
+const socketIo = require('socket.io')
+const express = require('express')
+const customId = require('custom-id')
+const {
+    addUser, removeUser, getUser, getUsersInRoom, existingRoom, setKiller, setReadyState, checkAllReady,
+    setBooleanParameters, isKilled, addCoin,getKiller,adminStart} = require('./utils/users')
 
 const app = express()
 const server = http.createServer(app)
-const io = socketio(server)
+const io = socketIo(server)
 
 const port = process.env.PORT || 3000
 
@@ -16,186 +17,201 @@ const publicDirectoryPath = path.join(__dirname, '../public')
 
 app.use(express.static(publicDirectoryPath))
 
+const userInfoEmitter='userInfo'
+const roomDataEmitter='roomData'
+const readyStateEmitter='ready'
+const isKilledEmitter='isKilled'
+const winnerEmitter='winner'
+const tokenRaisedEmitter='tokenRaised'
+const tokenAcceptedEmitter='tokenAccepted'
 
+const userInfoEnum={
+    admin:1,
+    iHaveJoined:2,
+    othersHaveJoined:3,
+    youAreKiller:4,
+    trueKiller:5,
+    gameOver:6,
+    falseKiller:7,
+    disconnect:8
+}
 
-io.on('connection',(socket)=>{
+const isKilledEnum={
+    userIsKilled:1,
+    killerIsCaught:2,
+    falseAccuse:3
+}
+
+const createListener='create'
+const playListener='play'
+const forceStartListener='forceStart'
+const onKillingListener='onKilling'
+const raiseTokenListener='raiseToken'
+const acceptTokenListener='acceptToken'
+const addCoinListener='addCoin'
+
+io.on('connection', (socket) => {
     console.log('New WebSocket connection')
 
-    socket.on('create',({username},callback)=>{
+    socket.on(createListener,(callback) => {
 
-        const room=customid({})
-        if(existingRoom(room))
-        {
-            return callback({error:"Try Again"},null)
+        const room = customId({})
+        if (existingRoom(room)) {
+            return callback({error: "Try Again"})
         }
-        
-        return callback(null,{room})
 
+        socket.emit(userInfoEmitter,userInfoEnum.admin,{room})
     })
 
-    
-    socket.on('join',({username,room},callback)=>{
+    socket.on('join', ({username, room}, callback) => {
 
-        if(username==null||room==null)
-        {
-            return callback({error:"missing data"},null)
+        if (username == null || room == null) {
+            return callback({error: "missing data"})
         }
 
-
-        readyState=false
-        killer=false
-        playing=false 
-        coin=0  
-        const {error,user}=addUser({id:socket.id,username,room,readyState,killer,playing,coin})
-        if(error)
-        {
-            
-            return callback({error},null)
+        let readyState = false
+        let killer = false
+        let playing = false
+        let coin = 0
+        const {error, user} = addUser({id: socket.id, username, room, readyState, killer, playing, coin})
+        if (error) {
+            return callback({error})
         }
         socket.join(room)
         console.log("working")
 
-        socket.broadcast.to(user.room).emit('userInfo',{message:'newUserJoined',user})
-        socket.emit('userInfo',{message:'youHaveJoined',user})
+        socket.broadcast.to(user.room).emit(userInfoEmitter, userInfoEnum.iHaveJoined,{user})
+        socket.emit(userInfoEmitter,userInfoEnum.othersHaveJoined,{user})
 
-        io.to(user.room).emit('roomData',{
-            room:user.room,
-            users:getUsersInRoom(user.room)
-        })
-
-        
-        return callback(null,user)
-    })
-
-    socket.on('play',({username,room},callback)=>{
-
-        console.log(username)
-        user=setReadyState(username,room)
-
-        const {ready,notReadyUsers} =checkAllReady(user.room)
-        
-        if(ready)
-        {
-        setBooleanParameters(user.room)
-        killer=setKiller(user.room)
-        io.to(killer.id).emit('userInfo',{message:'youAreKiller',killer})
-        }
-       
-        io.to(room).emit('ready',{ready,notReadyUsers})
-
-        return callback({ready})
-        
-    })
-
-    socket.on('onKilling',({username,room})=>{
-        const{user,activePlayers,falseKiller}=isKilled(username,room)
-
-        socket.emit('userInfo',{message:'trueKiller',killer})
-        io.to(user.id).emit('userInfo',{message:'gameOver',user})
-        //io.to(falseKiller.id).emit('userInfo',{message:falseKiller,falseKiller})
-
-        if(activePlayers.length===2)
-        {   io.to(room).emit('isKilled',{message:'userIsKilled',user,activePlayers})
-            setTimeout(()=>{
-                io.to(room).emit('winner',{activePlayers})
-                console.log('5 secons latter')
-                
-            },500)
-            
-        }
-        else
-        {
-        setTimeout(()=>{
-            io.to(room).emit('isKilled',{message:'userIsKilled',user,activePlayers})
-            console.log('5 secons latter')
-            
-        },5000)
-        }
-    })
-
-    socket.on('raiseToken',(user1,killer1)=>{
-        socket.broadcast.to(user1.room).emit('tokenRaised',{user1,killer1})
-    })
-
-    socket.on('acceptToken',(user1,user2,killer1,killer2)=>{
-        if(killer1.id===killer2.id)
-        {
-            const{user,activePlayers,falseKiller}=isKilled(killer1.username,killer1.room)
-
-            io.to(user.id).emit('userInfo',{message:'gameOver',user})
-            if(activePlayers.length===2||activePlayers.length===3)
-            {   io.to(room).emit('isKilled',{message:'killerIsCaught',user,activePlayers})
-                setTimeout(()=>{
-                    io.to(room).emit('winner',{activePlayers})
-                    
-                },500)
-            }
-            else
-            {
-            const killer=setKiller(user.room)
-            io.to(killer.id).emit('userInfo',{message:'youAreKiller',killer})
-            io.to(room).emit('isKilled',{message:'killerIsCaught',user,activePlayers})
-                
-            }
-        }
-        else
-        {
-            const obj1=isKilled(user1.username,user1.room)
-            const{user,activePlayers,falseKiller}=isKilled(user2.username,user2.room)
-
-            io.to(user1.id).emit('userInfo',{message:'gameOver',user1})
-            io.to(user2.id).emit('userInfo',{message:'gameOver',user2})
-
-            if(activePlayers.length===2||activePlayers.length===3)
-            {   io.to(room).emit('isKilled',{message:'falseAccuse',user1,user2,activePlayers})
-                setTimeout(()=>{
-                    io.to(room).emit('winner',{activePlayers})
-                },500)
-            }
-            else
-            {
-            const killer=setKiller(user.room)
-            io.to(killer.id).emit('userInfo',{message:'youAreKiller',killer})
-            io.to(room).emit('isKilled',{message:'killerIsCaught',user1,user2,activePlayers})
-                
-            }
-
-         }
-    })
-
-    socket.on('addCoin',({username,room,value})=>{
-        const {user,error} =addCoin(username,room,value)
-        if(user)
-        {
-        callback(null,user)
-        }
-        else
-        {
-            callback(error,null)
-        }
-      })
-    socket.on('disconnect', () => {
-        console.log(socket.id)
-        const user = getUser(socket.id)
-        if(user)
-        {
-        io.to(user.room).emit('roomData', {
+        io.to(user.room).emit(roomDataEmitter, {
             room: user.room,
             users: getUsersInRoom(user.room)
         })
-
-        io.to(user.room).emit('isDisconnected',user)
-        if (user) {
-           setTimeout(()=>{
-            removeUser(user.id)
-        },1000)
-        }
-    }
+        return callback({user})
     })
 
-    
+    socket.on(playListener, ({username, room}, callback) => {
 
+        console.log(username)
+        user = setReadyState(username, room)
 
+        const {ready, notReadyUsers} = checkAllReady(user.room)
+        if (ready) {
+            setBooleanParameters(user.room)
+            const killer = setKiller(user.room)
+            io.to(killer.id).emit(userInfoEmitter,userInfoEnum.youAreKiller,{killer})
+        }
+
+        io.to(room).emit(readyStateEmitter, {ready, notReadyUsers})
+
+        return callback({ready})
+    })
+
+    socket.on(forceStartListener,({room})=>{
+
+        const {notReadyUsers} =adminStart(room)
+
+        const killer = setKiller(room)
+        io.to(killer.id).emit(userInfoEmitter,userInfoEnum.youAreKiller,{killer})
+        io.to(room).emit(readyStateEmitter, {ready:true, notReadyUsers})
+    })
+
+    socket.on(onKillingListener, ({username, room}) => {
+
+        const {user, activePlayers, falseKiller} = isKilled(username, room)
+        const killer=getKiller(user.room)
+
+        socket.emit(userInfoEmitter, userInfoEnum.trueKiller,{killer})
+        io.to(user.id).emit(userInfoEmitter,userInfoEnum.gameOver,{ user})
+        io.to(falseKiller.id).emit(userInfoEmitter, userInfoEnum.falseKiller,{falseKiller})
+
+        if (activePlayers.length === 2) {
+            io.to(room).emit(isKilledEmitter, isKilledEnum.userIsKilled,{user, activePlayers})
+            setTimeout(() => {
+
+                io.to(room).emit(winnerEmitter, {activePlayers})
+                console.log('.5 seconds latter')
+            }, 500)
+        } else {
+
+            setTimeout(() => {
+                io.to(room).emit(isKilledEmitter, isKilledEnum.userIsKilled,{user, activePlayers})
+                console.log('5 seconds latter')
+            }, 5000)
+        }
+    })
+
+    socket.on(raiseTokenListener,({user1, killer1}) => {
+        socket.broadcast.to(user1.room).emit(tokenRaisedEmitter, {user1, killer1})
+    })
+
+    socket.on(acceptTokenListener, ({user1, user2, killer1, killer2}) => {
+
+        const killer=getKiller(user1.room)
+        if (killer1.id === killer2.id&&killer2.id===killer.id ) {
+            const {user, activePlayers, falseKiller} = isKilled(killer.username, killer.room)
+
+            io.to(user.room).emit(tokenAcceptedEmitter,{activePlayers})
+            io.to(user.id).emit(userInfoEmitter,userInfoEnum.gameOver,{user})
+
+            if (activePlayers.length === 2 || activePlayers.length === 3) {
+                io.to(user.room).emit(isKilledEmitter,isKilledEnum.killerIsCaught,{user, activePlayers})
+                setTimeout(() => {
+                    io.to(user.room).emit(winnerEmitter, {activePlayers})
+                }, 500)
+            } else {
+                const killer = setKiller(user.room)
+                io.to(killer.id).emit(userInfoEmitter,userInfoEnum.youAreKiller,{killer})
+                io.to(user.room).emit(isKilledEmitter,isKilledEnum.killerIsCaught,{user, activePlayers})
+
+            }
+        } else {
+            const obj1 = isKilled(user1.username, user1.room)
+            const {user, activePlayers, falseKiller} = isKilled(user2.username, user2.room)
+
+            io.to(user.room).emit(tokenAcceptedEmitter,{activePlayers})
+            io.to(user1.id).emit(userInfoEmitter,userInfoEnum.gameOver,{user1})
+            io.to(user2.id).emit(userInfoEmitter,userInfoEnum.gameOver,{user2})
+
+            if (activePlayers.length === 2 || activePlayers.length === 3) {
+                io.to(user.room).emit(isKilledEmitter,isKilledEnum.falseAccuse,{user1, user2, activePlayers})
+                setTimeout(() => {
+                    io.to(user.room).emit(winnerEmitter, {activePlayers})
+                }, 500)
+            } else {
+                const killer = setKiller(user.room)
+                io.to(killer.id).emit(userInfoEmitter,userInfoEnum.youAreKiller,{killer})
+                io.to(user.room).emit(isKilledEmitter,isKilledEnum.falseAccuse,{user1, user2, activePlayers})
+            }
+        }
+    })
+
+    socket.on(addCoinListener, ({username, room, value}) => {
+        const {user, error} = addCoin(username, room, value)
+        if (user) {
+            callback({user})
+        } else {
+            callback({error})
+        }
+    })
+
+    socket.on('disconnect', () => {
+        console.log(socket.id)
+        const user = getUser(socket.id)
+        if (user) {
+            io.to(user.room).emit(roomDataEmitter, {
+                room: user.room,
+                users: getUsersInRoom(user.room)
+            })
+
+            io.to(user.room).emit(userInfoEmitter,userInfoEnum.disconnect, user)
+            if (user) {
+                setTimeout(() => {
+                    removeUser(user.id)
+                }, 30000)
+            }
+        }
+    })
 })
 
 

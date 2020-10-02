@@ -1,7 +1,6 @@
 {
   "name": "game",
   "version": "1.0.0",
-  "description": "",
   "main": "index.js",
   "scripts": {
     "start": "node src/index.js",
@@ -17,5 +16,14 @@
   },
   "devDependencies": {
     "nodemon": "^2.0.4"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Yashaswi-1998/game_KillerInstinct.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Yashaswi-1998/game_KillerInstinct/issues"
+  },
+  "homepage": "https://github.com/Yashaswi-1998/game_KillerInstinct#readme",
+  "description": ""
 }
