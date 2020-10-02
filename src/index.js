@@ -2,7 +2,8 @@ const path = require('path')
 const http = require('http')
 const socketIo = require('socket.io')
 const express = require('express')
-const customId = require('custom-id')
+//const customId = require('custom-id')
+const randomArray = require('unique-random')
 const {
     addUser, removeUser, getUser, getUsersInRoom, existingRoom, setKiller, setReadyState, checkAllReady,
     setBooleanParameters, isKilled, addCoin,getKiller,adminStart} = require('./utils/users')
@@ -55,7 +56,8 @@ io.on('connection', (socket) => {
 
     socket.on(createListener,(callback) => {
 
-        const room = customId({})
+        const random = randomArray(10000000,99999999)
+        const room = random()
         if (existingRoom(room)) {
             return callback({error: "Try Again"})
         }

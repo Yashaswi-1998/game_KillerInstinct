@@ -187,6 +187,7 @@ const adminStart=(room)=>{
         }
     });
     users.set(room, currentUsers)
+    return {notReadyUsers}
 }
 
 const room = 'hell'
@@ -194,7 +195,7 @@ const obj1 = {
     id: 'qwerty',
     username: 'yashaswi',
     room,
-    readyState: true,
+    readyState: false,
     killer: true,
     playing: true,
     coin: 7
@@ -232,8 +233,7 @@ const obj4 = {
 // addUser(obj2)
 // addUser(obj3)
 // addUser(obj4)
-// console.log(getKiller(room))
-
+// console.log(adminStart(room))
 
 module.exports = {
     addUser,
