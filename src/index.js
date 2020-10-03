@@ -61,8 +61,8 @@ io.on('connection', (socket) => {
         if (existingRoom(room)) {
             return callback({error: "Try Again"})
         }
-
-        socket.emit(userInfoEmitter,userInfoEnum.admin,{room})
+        console.log('working')
+        socket.emit(userInfoEmitter,{userInfoEnum:userInfoEnum.admin,room})
     })
 
     socket.on('join', ({username, room}, callback) => {
@@ -82,8 +82,8 @@ io.on('connection', (socket) => {
         socket.join(room)
         console.log("working")
 
-        socket.broadcast.to(user.room).emit(userInfoEmitter, userInfoEnum.iHaveJoined,{user})
-        socket.emit(userInfoEmitter,userInfoEnum.othersHaveJoined,{user})
+        socket.broadcast.to(user.room).emit(userInfoEmitter,{userInfoEnum:userInfoEnum.iHaveJoined,user})
+        socket.emit(userInfoEmitter,{userInfoEnum:userInfoEnum.othersHaveJoined,user})
 
         io.to(user.room).emit(roomDataEmitter, {
             room: user.room,
@@ -95,13 +95,13 @@ io.on('connection', (socket) => {
     socket.on(playListener, ({username, room}, callback) => {
 
         console.log(username)
-        user = setReadyState(username, room)
+        const user = setReadyState(username, room)
 
         const {ready, notReadyUsers} = checkAllReady(user.room)
         if (ready) {
             setBooleanParameters(user.room)
             const killer = setKiller(user.room)
-            io.to(killer.id).emit(userInfoEmitter,userInfoEnum.youAreKiller,{killer})
+            io.to(killer.id).emit(userInfoEmitter,{userInfoEnum:userInfoEnum.youAreKiller,killer})
         }
 
         io.to(room).emit(readyStateEmitter, {ready, notReadyUsers})
@@ -114,7 +114,7 @@ io.on('connection', (socket) => {
         const {notReadyUsers} =adminStart(room)
 
         const killer = setKiller(room)
-        io.to(killer.id).emit(userInfoEmitter,userInfoEnum.youAreKiller,{killer})
+        io.to(killer.id).emit(userInfoEmitter,{userInfoEnum:userInfoEnum.youAreKiller,killer})
         io.to(room).emit(readyStateEmitter, {ready:true, notReadyUsers})
     })
 
@@ -123,12 +123,12 @@ io.on('connection', (socket) => {
         const {user, activePlayers, falseKiller} = isKilled(username, room)
         const killer=getKiller(user.room)
 
-        socket.emit(userInfoEmitter, userInfoEnum.trueKiller,{killer})
-        io.to(user.id).emit(userInfoEmitter,userInfoEnum.gameOver,{ user})
-        io.to(falseKiller.id).emit(userInfoEmitter, userInfoEnum.falseKiller,{falseKiller})
+        socket.emit(userInfoEmitter,{userInfoEnum:userInfoEnum.trueKiller,killer})
+        io.to(user.id).emit(userInfoEmitter,{userInfoEnum:userInfoEnum.gameOver,user})
+        io.to(falseKiller.id).emit(userInfoEmitter,{userInfoEnum:userInfoEnum.falseKiller,falseKiller})
 
         if (activePlayers.length === 2) {
-            io.to(room).emit(isKilledEmitter, isKilledEnum.userIsKilled,{user, activePlayers})
+            io.to(room).emit(isKilledEmitter,{isKilledEnum:isKilledEnum.userIsKilled,user, activePlayers})
             setTimeout(() => {
 
                 io.to(room).emit(winnerEmitter, {activePlayers})
@@ -137,7 +137,7 @@ io.on('connection', (socket) => {
         } else {
 
             setTimeout(() => {
-                io.to(room).emit(isKilledEmitter, isKilledEnum.userIsKilled,{user, activePlayers})
+                io.to(room).emit(isKilledEmitter,{isKilledEnum: isKilledEnum.userIsKilled,user, activePlayers})
                 console.log('5 seconds latter')
             }, 5000)
         }
@@ -154,17 +154,17 @@ io.on('connection', (socket) => {
             const {user, activePlayers, falseKiller} = isKilled(killer.username, killer.room)
 
             io.to(user.room).emit(tokenAcceptedEmitter,{activePlayers})
-            io.to(user.id).emit(userInfoEmitter,userInfoEnum.gameOver,{user})
+            io.to(user.id).emit(userInfoEmitter,{userInfoEnum:userInfoEnum.gameOver,user})
 
             if (activePlayers.length === 2 || activePlayers.length === 3) {
-                io.to(user.room).emit(isKilledEmitter,isKilledEnum.killerIsCaught,{user, activePlayers})
+                io.to(user.room).emit(isKilledEmitter,{isKilledEnum:isKilledEnum.killerIsCaught,user, activePlayers})
                 setTimeout(() => {
                     io.to(user.room).emit(winnerEmitter, {activePlayers})
                 }, 500)
             } else {
                 const killer = setKiller(user.room)
-                io.to(killer.id).emit(userInfoEmitter,userInfoEnum.youAreKiller,{killer})
-                io.to(user.room).emit(isKilledEmitter,isKilledEnum.killerIsCaught,{user, activePlayers})
+                io.to(killer.id).emit(userInfoEmitter,{userInfoEnum:userInfoEnum.youAreKiller,killer})
+                io.to(user.room).emit(isKilledEmitter,{isKilledEnum:isKilledEnum.killerIsCaught,user, activePlayers})
 
             }
         } else {
@@ -172,18 +172,18 @@ io.on('connection', (socket) => {
             const {user, activePlayers, falseKiller} = isKilled(user2.username, user2.room)
 
             io.to(user.room).emit(tokenAcceptedEmitter,{activePlayers})
-            io.to(user1.id).emit(userInfoEmitter,userInfoEnum.gameOver,{user1})
-            io.to(user2.id).emit(userInfoEmitter,userInfoEnum.gameOver,{user2})
+            io.to(user1.id).emit(userInfoEmitter,{userInfoEnum:userInfoEnum.gameOver,user1})
+            io.to(user2.id).emit(userInfoEmitter,{userInfoEnum:userInfoEnum.gameOver,user2})
 
             if (activePlayers.length === 2 || activePlayers.length === 3) {
-                io.to(user.room).emit(isKilledEmitter,isKilledEnum.falseAccuse,{user1, user2, activePlayers})
+                io.to(user.room).emit(isKilledEmitter,{isKilledEnum:isKilledEnum.falseAccuse,user1, user2, activePlayers})
                 setTimeout(() => {
                     io.to(user.room).emit(winnerEmitter, {activePlayers})
                 }, 500)
             } else {
                 const killer = setKiller(user.room)
-                io.to(killer.id).emit(userInfoEmitter,userInfoEnum.youAreKiller,{killer})
-                io.to(user.room).emit(isKilledEmitter,isKilledEnum.falseAccuse,{user1, user2, activePlayers})
+                io.to(killer.id).emit(userInfoEmitter,{userInfoEnum:userInfoEnum.youAreKiller,killer})
+                io.to(user.room).emit(isKilledEmitter,{isKilledEnum:isKilledEnum.falseAccuse,user1, user2, activePlayers})
             }
         }
     })
@@ -206,7 +206,7 @@ io.on('connection', (socket) => {
                 users: getUsersInRoom(user.room)
             })
 
-            io.to(user.room).emit(userInfoEmitter,userInfoEnum.disconnect, user)
+            io.to(user.room).emit(userInfoEmitter,{userInfoEnum:userInfoEnum.disconnect, user})
             if (user) {
                 setTimeout(() => {
                     removeUser(user.id)
