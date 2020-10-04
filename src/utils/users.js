@@ -192,8 +192,8 @@ const adminStart=(room)=>{
 
 const room = 'hell'
 const obj1 = {
-    id: 'qwerty',
-    username: 'yashaswi',
+    id: 'id1',
+    username: 'user1',
     room,
     readyState: false,
     killer: true,
@@ -202,8 +202,8 @@ const obj1 = {
 }
 
 const obj2 = {
-    id: 'qwwwert',
-    username: 'kopal',
+    id: 'id2',
+    username: 'user2',
     room,
     readyState: true,
     killer: false,
@@ -211,8 +211,8 @@ const obj2 = {
     coin: 8
 }
 const obj3 = {
-    id: 'qqqwert',
-    username: 'amit',
+    id: 'id3',
+    username: 'user3',
     room: 'heaven',
     readyState: true,
     killer: false,
@@ -221,8 +221,8 @@ const obj3 = {
 }
 
 const obj4 = {
-    id: 'qwertty',
-    username: 'mummy ',
+    id: 'id4',
+    username: 'user4',
     room,
     readyState: true,
     killer: false,
